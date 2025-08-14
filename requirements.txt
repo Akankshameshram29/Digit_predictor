@@ -3,5 +3,4 @@ tensorflow
 opencv-python
 numpy
 pillow
-html
 javascript
