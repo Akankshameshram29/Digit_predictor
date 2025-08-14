@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Digit Recognition - Multi-Digit</title>
+  <style>
+    /* Simple modern theme */
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: #f0f4f8;
+      color: #333;
+      margin: 0;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    h1 {
+      margin-bottom: 10px;
+      color: #222;
+    }
+
+    .container {
+      background-color: #fff;
+      border-radius: 8px;
+      box-shadow: 0px 4px 16px rgba(0,0,0,0.1);
+      padding: 20px 30px 30px 30px;
+      max-width: 480px;
+      width: 100%;
+    }
+
+    label {
+      font-weight: 600;
+      margin-top: 20px;
+      display: block;
+      margin-bottom: 8px;
+    }
+
+    input[type="file"] {
+      display: block;
+      margin: 12px 0 5px 0;
+    }
+
+    button {
+      background-color: #007bff;
+      color: white;
+      border: none;
+      padding: 12px 20px;
+      border-radius: 5px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 16px;
+      margin-top: 10px;
+      transition: background-color 0.3s ease;
+      width: 100%;
+    }
+
+    button:hover {
+      background-color: #0056b3;
+    }
+
+    canvas {
+      border: 2px solid #007bff;
+      border-radius: 8px;
+      touch-action: none;
+      display: block;
+      margin: 0 auto 10px auto;
+      background-color: white; /* FIX: white background */
+      box-shadow: inset 0 0 5px #ddd;
+      cursor: crosshair;
+    }
+
+    #uploadPreview {
+      max-width: 100%;
+      margin-top: 10px;
+      border-radius: 8px;
+      box-shadow: 0 0 8px #aaa;
+      display: none;
+    }
+
+    #uploadResult, #drawResult {
+      margin-top: 12px;
+      font-size: 20px;
+      font-weight: 700;
+      color: #007bff;
+      min-height: 28px;
+      text-align: center;
+    }
+
+    hr {
+      margin: 30px 0;
+      border: none;
+      border-top: 1px solid #ddd;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Multi-Digit Recognizer</h1>
+    
+    <label for="imageUpload">Upload Digit Image</label>
+    <input type="file" id="imageUpload" accept="image/*" />
+    <img id="uploadPreview" alt="Image Preview" />
+    <button id="uploadBtn">Predict from Upload</button>
+    <p id="uploadResult"></p>
+
+    <hr>
+
+    <label>Draw Digits Below</label>
+    <canvas id="drawCanvas" width="280" height="280"></canvas>
+    <button id="clearBtn">Clear Canvas</button>
+    <button id="predictDrawBtn">Predict Drawing</button>
+    <p id="drawResult"></p>
+  </div>
+
+  <script>
+    // Canvas Setup
+    const canvas = document.getElementById('drawCanvas');
+    const ctx = canvas.getContext('2d');
+    ctx.lineWidth = 18;
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = 'black';
+
+    // FIX BACKGROUND INITIALIZATION TO WHITE
+    function fillWhiteBackground() {
+      ctx.fillStyle = 'white';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.beginPath();
+    }
+    fillWhiteBackground();
+
+    let drawing = false;
+
+    function startPosition(e) {
+      drawing = true;
+      draw(e);
+    }
+
+    function endPosition() {
+      drawing = false;
+      ctx.beginPath();
+    }
+
+    function draw(e) {
+      if (!drawing) return;
+      const rect = canvas.getBoundingClientRect();
+      const x = e.clientX !== undefined ? e.clientX : e.touches[0].clientX;
+      const y = e.clientY !== undefined ? e.clientY : e.touches[0].clientY;
+      ctx.lineTo(x - rect.left, y - rect.top);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(x - rect.left, y - rect.top);
+    }
+
+    // Mouse events
+    canvas.addEventListener('mousedown', startPosition);
+    canvas.addEventListener('mouseup', endPosition);
+    canvas.addEventListener('mouseout', endPosition);
+    canvas.addEventListener('mousemove', draw);
+
+    // Touch events
+    canvas.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      startPosition(e.touches[0]);
+    });
+    canvas.addEventListener('touchend', (e) => {
+      e.preventDefault();
+      endPosition();
+    });
+    canvas.addEventListener('touchmove', (e) => {
+      e.preventDefault();
+      draw(e.touches[0]);
+    });
+
+    document.getElementById('clearBtn').addEventListener('click', () => {
+      fillWhiteBackground();
+      document.getElementById('drawResult').innerText = '';
+    });
+
+    // Upload image preview
+    const imageUploadInput = document.getElementById('imageUpload');
+    const uploadPreview = document.getElementById('uploadPreview');
+
+    imageUploadInput.addEventListener('change', function() {
+      const file = this.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          uploadPreview.src = e.target.result;
+          uploadPreview.style.display = 'block';
+        }
+        reader.readAsDataURL(file);
+      } else {
+        uploadPreview.src = '';
+        uploadPreview.style.display = 'none';
+      }
+      // Clear previous prediction result on new upload
+      document.getElementById('uploadResult').innerText = '';
+    });
+
+    // Upload image prediction
+    document.getElementById('uploadBtn').addEventListener('click', () => {
+      const input = document.getElementById('imageUpload');
+      if (!input.files.length) {
+        alert('Please select an image first.');
+        return;
+      }
+      const file = input.files[0];
+      const formData = new FormData();
+      formData.append('file', file);
+
+      document.getElementById('uploadResult').innerText = 'Predicting...';
+
+      fetch('/predict', {
+        method: 'POST',
+        body: formData
+      })
+      .then(res => res.json())
+      .then(data => {
+        if(data.predicted_number !== undefined) {
+          document.getElementById('uploadResult').innerText = 'Prediction: ' + data.predicted_number;
+        } else {
+          document.getElementById('uploadResult').innerText = 'Error: ' + (data.error || 'Unknown error');
+        }
+      })
+      .catch(err => {
+        document.getElementById('uploadResult').innerText = 'Error: ' + err;
+      });
+    });
+
+    // Predict from canvas drawing
+    document.getElementById('predictDrawBtn').addEventListener('click', () => {
+      const dataURL = canvas.toDataURL('image/png');
+      document.getElementById('drawResult').innerText = 'Predicting...';
+
+      fetch('/predict', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image: dataURL })
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.predicted_number !== undefined) {
+          document.getElementById('drawResult').innerText = 'Prediction: ' + data.predicted_number;
+        } else {
+          document.getElementById('drawResult').innerText = 'Error: ' + (data.error || 'Unknown error');
+        }
+      })
+      .catch(err => {
+        document.getElementById('drawResult').innerText = 'Error: ' + err;
+      });
+    });
+  </script>
+</body>
+</html>
