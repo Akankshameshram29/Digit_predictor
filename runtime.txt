@@ -1,7 +1,5 @@
 python-3.10.13
 
-pip>=25.2
-setuptools>=68.0.0
-wheel
+
 
 
