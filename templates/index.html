@@ -1,10 +1,11 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
+<head>  # make chnages in this for render 
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Digit Recognition - Multi-Digit</title>
   <style>
+    /* Simple modern theme */
     body {
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
       background-color: #f0f4f8;
@@ -15,10 +16,12 @@
       flex-direction: column;
       align-items: center;
     }
+
     h1 {
       margin-bottom: 10px;
       color: #222;
     }
+
     .container {
       background-color: #fff;
       border-radius: 8px;
@@ -27,16 +30,19 @@
       max-width: 480px;
       width: 100%;
     }
+
     label {
       font-weight: 600;
       margin-top: 20px;
       display: block;
       margin-bottom: 8px;
     }
+
     input[type="file"] {
       display: block;
       margin: 12px 0 5px 0;
     }
+
     button {
       background-color: #007bff;
       color: white;
@@ -50,19 +56,22 @@
       transition: background-color 0.3s ease;
       width: 100%;
     }
+
     button:hover {
       background-color: #0056b3;
     }
+
     canvas {
       border: 2px solid #007bff;
       border-radius: 8px;
       touch-action: none;
       display: block;
       margin: 0 auto 10px auto;
-      background-color: white;
+      background-color: white; /* FIX: white background */
       box-shadow: inset 0 0 5px #ddd;
       cursor: crosshair;
     }
+
     #uploadPreview {
       max-width: 100%;
       margin-top: 10px;
@@ -70,6 +79,7 @@
       box-shadow: 0 0 8px #aaa;
       display: none;
     }
+
     #uploadResult, #drawResult {
       margin-top: 12px;
       font-size: 20px;
@@ -78,6 +88,7 @@
       min-height: 28px;
       text-align: center;
     }
+
     hr {
       margin: 30px 0;
       border: none;
@@ -105,11 +116,6 @@
   </div>
 
   <script>
-    // Automatically switch API base URL
-    const API_BASE = window.location.hostname.includes("localhost")
-      ? "http://localhost:5000"
-      : "https://digit-predictor-r5wo.onrender.com"; // Replace with your Render backend URL
-
     // Canvas Setup
     const canvas = document.getElementById('drawCanvas');
     const ctx = canvas.getContext('2d');
@@ -117,6 +123,7 @@
     ctx.lineCap = 'round';
     ctx.strokeStyle = 'black';
 
+    // FIX BACKGROUND INITIALIZATION TO WHITE
     function fillWhiteBackground() {
       ctx.fillStyle = 'white';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -125,8 +132,17 @@
     fillWhiteBackground();
 
     let drawing = false;
-    function startPosition(e) { drawing = true; draw(e); }
-    function endPosition() { drawing = false; ctx.beginPath(); }
+
+    function startPosition(e) {
+      drawing = true;
+      draw(e);
+    }
+
+    function endPosition() {
+      drawing = false;
+      ctx.beginPath();
+    }
+
     function draw(e) {
       if (!drawing) return;
       const rect = canvas.getBoundingClientRect();
@@ -145,9 +161,18 @@
     canvas.addEventListener('mousemove', draw);
 
     // Touch events
-    canvas.addEventListener('touchstart', (e) => { e.preventDefault(); startPosition(e.touches[0]); });
-    canvas.addEventListener('touchend', (e) => { e.preventDefault(); endPosition(); });
-    canvas.addEventListener('touchmove', (e) => { e.preventDefault(); draw(e.touches[0]); });
+    canvas.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      startPosition(e.touches[0]);
+    });
+    canvas.addEventListener('touchend', (e) => {
+      e.preventDefault();
+      endPosition();
+    });
+    canvas.addEventListener('touchmove', (e) => {
+      e.preventDefault();
+      draw(e.touches[0]);
+    });
 
     document.getElementById('clearBtn').addEventListener('click', () => {
       fillWhiteBackground();
@@ -171,6 +196,7 @@
         uploadPreview.src = '';
         uploadPreview.style.display = 'none';
       }
+      // Clear previous prediction result on new upload
       document.getElementById('uploadResult').innerText = '';
     });
 
@@ -187,7 +213,7 @@
 
       document.getElementById('uploadResult').innerText = 'Predicting...';
 
-      fetch(`${API_BASE}/predict`, {
+      fetch('/predict', {
         method: 'POST',
         body: formData
       })
@@ -209,7 +235,7 @@
       const dataURL = canvas.toDataURL('image/png');
       document.getElementById('drawResult').innerText = 'Predicting...';
 
-      fetch(`${API_BASE}/predict`, {
+      fetch('/predict', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ image: dataURL })
