@@ -1,4 +1,5 @@
 from flask import Flask, request, render_template, jsonify
+from flask_cors import CORS
 import tensorflow as tf
 import numpy as np
 import cv2
@@ -7,6 +8,7 @@ import re
 import os
 
 app = Flask(__name__)
+CORS(app)  # Allow cross-origin requests from your HTML frontend
 
 # Load your trained model
 model = tf.keras.models.load_model('my_digit_model.h5')
@@ -28,7 +30,6 @@ def preprocess_and_segment(image):
     digit_imgs = []
     bounding_boxes = []
 
-    # Filter contours by size and extract bounding boxes
     for cnt in contours:
         x, y, w, h = cv2.boundingRect(cnt)
         if w > 5 and h > 5:  # filter tiny noise
@@ -43,8 +44,6 @@ def preprocess_and_segment(image):
     x_range = max(xs) - min(xs)
     y_range = max(ys) - min(ys)
 
-    # Sort bounding boxes by x (left to right) if horizontal
-    # or by y (top to bottom) if vertical based on range
     if x_range >= y_range:
         bounding_boxes = sorted(bounding_boxes, key=lambda b: b[0])  # horizontal
     else:
@@ -60,42 +59,42 @@ def preprocess_and_segment(image):
     return digit_imgs
 
 def prepare_image_for_model(digit_img):
-    # Normalize and reshape to (1, 28, 28, 1)
     norm_img = digit_img.astype('float32') / 255.0
     norm_img = norm_img.reshape(1, 28, 28, 1)
     return norm_img
 
 @app.route('/')
 def index():
-    return render_template('index.html')
+    return render_template('index.html')  # serve your HTML frontend
 
 @app.route('/predict', methods=['POST'])
 def predict():
-    # Check if file upload
     if 'file' in request.files:
         file = request.files['file']
         if file.filename == '':
             return jsonify({'error': 'No file selected'}), 400
-        
+
         file_bytes = np.frombuffer(file.read(), np.uint8)
         img = cv2.imdecode(file_bytes, cv2.IMREAD_COLOR)
         if img is None:
             return jsonify({'error': 'Invalid image'}), 400
-        
+
     else:
-        # Check if drawing data submitted
         data = request.json.get('image')
         if not data:
             return jsonify({'error': 'No image data provided'}), 400
-        
-        img_str = re.search(r'base64,(.*)', data).group(1)
-        img_bytes = base64.b64decode(img_str)
+
+        img_str_match = re.search(r'base64,(.*)', data)
+        if not img_str_match:
+            return jsonify({'error': 'Invalid base64 data'}), 400
+
+        img_bytes = base64.b64decode(img_str_match.group(1))
         nparr = np.frombuffer(img_bytes, np.uint8)
         img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
         if img is None:
             return jsonify({'error': 'Invalid image data'}), 400
 
-    # Segment digits from the image
+    # Process & predict
     digit_imgs = preprocess_and_segment(img)
     if not digit_imgs:
         return jsonify({'error': 'No digits found'}), 400
@@ -107,10 +106,9 @@ def predict():
         digit = int(np.argmax(prediction))
         predicted_digits.append(str(digit))
 
-    # Join predicted digits (horizontal or vertical sequence)
     predicted_number = ''.join(predicted_digits)
-
     return jsonify({'predicted_number': predicted_number})
+
 if __name__ == '__main__':
-    # Run on localhost port 5000 with debug
-    app.run(debug=True)
+    port = int(os.environ.get('PORT', 5000))  # Required for Render
+    app.run(host='0.0.0.0', port=port)
