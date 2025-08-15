@@ -111,7 +111,6 @@ def predict():
     predicted_number = ''.join(predicted_digits)
 
     return jsonify({'predicted_number': predicted_number})
-
-#if __name__ == '__main__':
+if __name__ == '__main__':
     # Run on localhost port 5000 with debug
-    #app.run(debug=True)
+    app.run(debug=True)
